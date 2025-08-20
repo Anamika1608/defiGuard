@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import Web3Service from '../../hooks/index';
+import web3Service from '../../hooks/index';
 import "./index.css";
 
 export default function Wallet() {
@@ -9,6 +9,7 @@ export default function Wallet() {
   const [balance, setBalance] = useState('0');
   const [networkId, setNetworkId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [switchingNetwork, setSwitchingNetwork] = useState(false);
   
   // Send transaction states
   const [recipientAddress, setRecipientAddress] = useState('');
@@ -17,6 +18,9 @@ export default function Wallet() {
   
   // Transaction history
   const [transactions, setTransactions] = useState([]);
+  
+  // Network selection state
+  const [showNetworkSelector, setShowNetworkSelector] = useState(false);
 
   useEffect(() => {
     checkConnection();
@@ -25,7 +29,7 @@ export default function Wallet() {
 
   const checkConnection = async () => {
     try {
-      if (Web3Service.isMetaMaskInstalled()) {
+      if (web3Service.isMetaMaskInstalled()) {
         const accounts = await window.ethereum.request({ method: 'eth_accounts' });
         if (accounts.length > 0) {
           await connectWallet();
@@ -38,7 +42,7 @@ export default function Wallet() {
 
   const setupEventListeners = () => {
     // Listen for account changes
-    Web3Service.onAccountChange((newAccount) => {
+    web3Service.onAccountChange((newAccount) => {
       if (newAccount) {
         setAccount(newAccount);
         refreshBalance();
@@ -50,10 +54,12 @@ export default function Wallet() {
     });
 
     // Listen for network changes
-    Web3Service.onNetworkChange((newNetworkId) => {
+    web3Service.onNetworkChange((newNetworkId) => {
       setNetworkId(newNetworkId);
       refreshBalance();
-      toast.info(`Network changed to ${Web3Service.getNetworkName(newNetworkId)}`);
+      const networkName = web3Service.getNetworkName(newNetworkId);
+      const isTestnet = web3Service.isTestnet(newNetworkId);
+      toast.info(`Network changed to ${networkName}${isTestnet ? ' (Testnet)' : ''}`);
     });
   };
 
@@ -61,12 +67,12 @@ export default function Wallet() {
     try {
       setLoading(true);
       
-      if (!Web3Service.isMetaMaskInstalled()) {
+      if (!web3Service.isMetaMaskInstalled()) {
         toast.error('MetaMask is not installed. Please install MetaMask to continue.');
         return;
       }
 
-      const result = await Web3Service.initWeb3();
+      const result = await web3Service.initWeb3();
       
       setIsConnected(true);
       setAccount(result.account);
@@ -74,7 +80,8 @@ export default function Wallet() {
       
       await refreshBalance();
       
-      toast.success('Wallet connected successfully!');
+      const networkName = web3Service.getNetworkName(result.networkId);
+      toast.success(`Wallet connected successfully! Network: ${networkName}`);
     } catch (error) {
       toast.error(`Failed to connect wallet: ${error.message}`);
       console.error('Connection error:', error);
@@ -84,12 +91,13 @@ export default function Wallet() {
   };
 
   const disconnect = () => {
-    Web3Service.disconnect();
+    web3Service.disconnect();
     setIsConnected(false);
     setAccount('');
     setBalance('0');
     setNetworkId(null);
     setTransactions([]);
+    setShowNetworkSelector(false);
     toast.info('Wallet disconnected');
   };
 
@@ -97,10 +105,24 @@ export default function Wallet() {
     try {
       if (!isConnected) return;
       
-      const balanceData = await Web3Service.getBalance();
+      const balanceData = await web3Service.getBalance();
       setBalance(balanceData.formatted);
     } catch (error) {
       toast.error(`Failed to fetch balance: ${error.message}`);
+    }
+  };
+
+  const switchNetwork = async (chainId) => {
+    try {
+      setSwitchingNetwork(true);
+      await web3Service.switchNetwork(chainId);
+      setShowNetworkSelector(false);
+      // Network change will be handled by the event listener
+    } catch (error) {
+      toast.error(`Failed to switch network: ${error.message}`);
+      console.error('Network switch error:', error);
+    } finally {
+      setSwitchingNetwork(false);
     }
   };
 
@@ -110,7 +132,7 @@ export default function Wallet() {
       return;
     }
 
-    if (!Web3Service.isValidAddress(recipientAddress)) {
+    if (!web3Service.isValidAddress(recipientAddress)) {
       toast.error('Invalid recipient address');
       return;
     }
@@ -123,7 +145,7 @@ export default function Wallet() {
     try {
       setSending(true);
       
-      const result = await Web3Service.sendTransaction(recipientAddress, sendAmount);
+      const result = await web3Service.sendTransaction(recipientAddress, sendAmount);
       
       // Add transaction to local history
       const newTransaction = {
@@ -132,7 +154,8 @@ export default function Wallet() {
         to: result.to,
         amount: result.amount,
         timestamp: new Date().toLocaleString(),
-        type: 'sent'
+        type: 'sent',
+        network: web3Service.getNetworkName(networkId)
       };
       
       setTransactions(prev => [newTransaction, ...prev]);
@@ -157,12 +180,25 @@ export default function Wallet() {
     toast.success('Copied to clipboard!');
   };
 
-  const addTestnetETH = () => {
-    toast.info('Visit https://sepoliafaucet.com/ to get free test ETH');
-    window.open('https://sepoliafaucet.com/', '_blank');
+  const openFaucet = () => {
+    const faucetUrl = web3Service.getFaucetUrl(networkId);
+    if (faucetUrl) {
+      window.open(faucetUrl, '_blank');
+      toast.info('Opening faucet in new tab');
+    } else {
+      toast.warn('No faucet available for this network');
+    }
   };
 
-  if (!Web3Service.isMetaMaskInstalled()) {
+  const getCurrentNetwork = () => {
+    return web3Service.getCurrentNetwork();
+  };
+
+  const getSupportedNetworks = () => {
+    return web3Service.getSupportedNetworks();
+  };
+
+  if (!web3Service.isMetaMaskInstalled()) {
     return (
       <div className="wallet-container">
         <div className="wallet-header">
@@ -213,7 +249,7 @@ export default function Wallet() {
                 className="info-value clickable"
                 onClick={() => copyToClipboard(account)}
               >
-                {Web3Service.formatAddress(account)}
+                {web3Service.formatAddress(account)}
               </span>
             </div>
             <div className="info-row">
@@ -222,20 +258,60 @@ export default function Wallet() {
             </div>
             <div className="info-row">
               <span className="info-label">Network:</span>
-              <span className="info-value">{Web3Service.getNetworkName(networkId)}</span>
+              <span className="info-value">
+                {web3Service.getNetworkName(networkId)}
+                {web3Service.isTestnet(networkId) && <span className="testnet-badge">Testnet</span>}
+              </span>
             </div>
             <div className="wallet-actions">
               <button className="wallet-button secondary" onClick={refreshBalance}>
                 Refresh Balance
               </button>
-              <button className="wallet-button secondary" onClick={addTestnetETH}>
-                Get Test ETH
+              <button 
+                className="wallet-button secondary" 
+                onClick={() => setShowNetworkSelector(!showNetworkSelector)}
+                disabled={switchingNetwork}
+              >
+                Switch Network {switchingNetwork && <div className="loading-spinner"></div>}
               </button>
+              {web3Service.isTestnet(networkId) && (
+                <button className="wallet-button secondary" onClick={openFaucet}>
+                  Get Test ETH
+                </button>
+              )}
               <button className="wallet-button secondary" onClick={disconnect}>
                 Disconnect
               </button>
             </div>
           </div>
+
+          {/* Network Selector */}
+          {showNetworkSelector && (
+            <div className="wallet-section">
+              <h3 className="section-title">Select Network</h3>
+              <div className="network-grid">
+                {getSupportedNetworks().map((network) => {
+                  const isCurrentNetwork = network.chainId === `0x${networkId?.toString(16)}`;
+                  return (
+                    <div 
+                      key={network.chainId} 
+                      className={`network-card ${isCurrentNetwork ? 'active' : ''}`}
+                      onClick={() => !isCurrentNetwork && switchNetwork(network.chainId)}
+                    >
+                      <div className="network-name">
+                        {network.displayName}
+                        {network.isTestnet && <span className="testnet-badge">Testnet</span>}
+                      </div>
+                      <div className="network-currency">
+                        {network.nativeCurrency.symbol}
+                      </div>
+                      {isCurrentNetwork && <div className="current-network">Current</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="wallet-section">
             <h3 className="section-title">Send ETH</h3>
@@ -270,8 +346,9 @@ export default function Wallet() {
                 {transactions.map((tx, index) => (
                   <div key={index} className="transaction-item">
                     <div>Hash: {tx.hash}</div>
-                    <div>To: {Web3Service.formatAddress(tx.to)}</div>
+                    <div>To: {web3Service.formatAddress(tx.to)}</div>
                     <div>Amount: {tx.amount} ETH</div>
+                    <div>Network: {tx.network}</div>
                     <div>Time: {tx.timestamp}</div>
                   </div>
                 ))}

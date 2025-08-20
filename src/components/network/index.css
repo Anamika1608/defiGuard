@@ -1,15 +1,7 @@
 /* Wallet Container */
-body {
-  display: flex;
-  justify-content: center; /* centers horizontally */
-  align-items: center;    /* centers vertically */
-  min-height: 100vh;      /* full viewport height */
-  margin: 0;
-  background: #121212;    /* optional background */
-}
-
 .wallet-container {
   max-width: 600px;
+  margin: 0 auto;
   padding: 20px;
   background-color: #1e1e2e;
   border-radius: 12px;
@@ -367,12 +359,118 @@ body {
   }
 }
 
+/* Network Info Component Styles */
+.network-info {
+  background-color: #2d2d3d;
+  border: 1px solid #4a4a5a;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.network-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.network-details {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.network-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.network-status-badge {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  color: white;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.wallet-button.small {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.network-metadata {
+  border-top: 1px solid #4a4a5a;
+  padding-top: 10px;
+  margin-top: 10px;
+}
+
+.network-meta-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+  font-size: 14px;
+  color: #a3a3a3;
+}
+
+.network-meta-item span:first-child {
+  font-weight: 600;
+  color: #fff;
+}
+
+.explorer-link {
+  color: #6366f1;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.explorer-link:hover {
+  text-decoration: underline;
+}
+
+.testnet-warning {
+  background-color: rgba(245, 158, 11, 0.1);
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+  padding: 8px;
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #f59e0b;
+}
+
+.warning-icon {
+  font-size: 16px;
+}
+
 /* Animation for network selector */
 .wallet-section {
   animation: slideIn 0.3s ease-out;
 }
 
 @keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Animation for connection status */
+.connection-status {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
   from {
     opacity: 0;
     transform: translateY(-10px);

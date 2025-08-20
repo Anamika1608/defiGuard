@@ -161,6 +161,48 @@ class Web3Service {
     }
   }
 
+  // Get supported networks
+  getSupportedNetworks() {
+    return [
+      {
+        chainId: '0x1',
+        chainName: 'Ethereum Mainnet',
+        displayName: 'Mainnet',
+        nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+        rpcUrls: ['https://mainnet.infura.io/v3/'],
+        blockExplorerUrls: ['https://etherscan.io/'],
+        isTestnet: false
+      },
+      {
+        chainId: '0xaa36a7',
+        chainName: 'Sepolia Testnet',
+        displayName: 'Sepolia',
+        nativeCurrency: { name: 'Sepolia Ether', symbol: 'ETH', decimals: 18 },
+        rpcUrls: ['https://sepolia.infura.io/v3/'],
+        blockExplorerUrls: ['https://sepolia.etherscan.io/'],
+        isTestnet: true
+      },
+      {
+        chainId: '0x5',
+        chainName: 'Goerli Testnet',
+        displayName: 'Goerli',
+        nativeCurrency: { name: 'Goerli Ether', symbol: 'ETH', decimals: 18 },
+        rpcUrls: ['https://goerli.infura.io/v3/'],
+        blockExplorerUrls: ['https://goerli.etherscan.io/'],
+        isTestnet: true
+      },
+      {
+        chainId: '0x13881',
+        chainName: 'Polygon Mumbai Testnet',
+        displayName: 'Mumbai',
+        nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
+        rpcUrls: ['https://rpc-mumbai.maticvigil.com/'],
+        blockExplorerUrls: ['https://mumbai.polygonscan.com/'],
+        isTestnet: true
+      }
+    ];
+  }
+
   // Get network name
   getNetworkName(networkId) {
     const networks = {
@@ -169,9 +211,81 @@ class Web3Service {
       4: 'Rinkeby',
       5: 'Goerli',
       11155111: 'Sepolia',
+      80001: 'Mumbai',
       1337: 'Local'
     };
     return networks[networkId] || `Unknown (${networkId})`;
+  }
+
+  // Get current network details
+  getCurrentNetwork() {
+    const supportedNetworks = this.getSupportedNetworks();
+    const currentChainId = this.networkId ? `0x${this.networkId.toString(16)}` : null;
+    return supportedNetworks.find(network => network.chainId === currentChainId) || null;
+  }
+
+  // Switch network
+  async switchNetwork(chainId) {
+    try {
+      if (!window.ethereum) {
+        throw new Error('MetaMask not found');
+      }
+
+      // Try to switch to the network
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId }],
+      });
+
+      console.log(`Switched to network: ${chainId}`);
+      return { success: true };
+    } catch (error) {
+      // If network doesn't exist in MetaMask, add it
+      if (error.code === 4902) {
+        return await this.addNetwork(chainId);
+      }
+      console.error('Error switching network:', error);
+      throw error;
+    }
+  }
+
+  // Add network to MetaMask
+  async addNetwork(chainId) {
+    try {
+      const supportedNetworks = this.getSupportedNetworks();
+      const networkToAdd = supportedNetworks.find(network => network.chainId === chainId);
+      
+      if (!networkToAdd) {
+        throw new Error('Unsupported network');
+      }
+
+      await window.ethereum.request({
+        method: 'wallet_addEthereumChain',
+        params: [networkToAdd],
+      });
+
+      console.log(`Added and switched to network: ${networkToAdd.chainName}`);
+      return { success: true };
+    } catch (error) {
+      console.error('Error adding network:', error);
+      throw error;
+    }
+  }
+
+  // Get network faucet URL
+  getFaucetUrl(networkId) {
+    const faucets = {
+      11155111: 'https://sepoliafaucet.com/', // Sepolia
+      5: 'https://goerlifaucet.com/', // Goerli
+      80001: 'https://faucet.polygon.technology/' // Mumbai
+    };
+    return faucets[networkId] || null;
+  }
+
+  // Check if network is testnet
+  isTestnet(networkId) {
+    const testnets = [3, 4, 5, 11155111, 80001, 1337];
+    return testnets.includes(Number(networkId));
   }
 
   // Listen for account changes
