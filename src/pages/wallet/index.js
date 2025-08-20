@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import web3Service from '../services/index';
+import Web3Service from '../../hooks/index';
 import "./index.css";
 
 export default function Wallet() {
@@ -25,7 +25,7 @@ export default function Wallet() {
 
   const checkConnection = async () => {
     try {
-      if (web3Service.isMetaMaskInstalled()) {
+      if (Web3Service.isMetaMaskInstalled()) {
         const accounts = await window.ethereum.request({ method: 'eth_accounts' });
         if (accounts.length > 0) {
           await connectWallet();
@@ -38,7 +38,7 @@ export default function Wallet() {
 
   const setupEventListeners = () => {
     // Listen for account changes
-    web3Service.onAccountChange((newAccount) => {
+    Web3Service.onAccountChange((newAccount) => {
       if (newAccount) {
         setAccount(newAccount);
         refreshBalance();
@@ -50,10 +50,10 @@ export default function Wallet() {
     });
 
     // Listen for network changes
-    web3Service.onNetworkChange((newNetworkId) => {
+    Web3Service.onNetworkChange((newNetworkId) => {
       setNetworkId(newNetworkId);
       refreshBalance();
-      toast.info(`Network changed to ${web3Service.getNetworkName(newNetworkId)}`);
+      toast.info(`Network changed to ${Web3Service.getNetworkName(newNetworkId)}`);
     });
   };
 
@@ -61,12 +61,12 @@ export default function Wallet() {
     try {
       setLoading(true);
       
-      if (!web3Service.isMetaMaskInstalled()) {
+      if (!Web3Service.isMetaMaskInstalled()) {
         toast.error('MetaMask is not installed. Please install MetaMask to continue.');
         return;
       }
 
-      const result = await web3Service.initWeb3();
+      const result = await Web3Service.initWeb3();
       
       setIsConnected(true);
       setAccount(result.account);
@@ -84,7 +84,7 @@ export default function Wallet() {
   };
 
   const disconnect = () => {
-    web3Service.disconnect();
+    Web3Service.disconnect();
     setIsConnected(false);
     setAccount('');
     setBalance('0');
@@ -97,7 +97,7 @@ export default function Wallet() {
     try {
       if (!isConnected) return;
       
-      const balanceData = await web3Service.getBalance();
+      const balanceData = await Web3Service.getBalance();
       setBalance(balanceData.formatted);
     } catch (error) {
       toast.error(`Failed to fetch balance: ${error.message}`);
@@ -110,7 +110,7 @@ export default function Wallet() {
       return;
     }
 
-    if (!web3Service.isValidAddress(recipientAddress)) {
+    if (!Web3Service.isValidAddress(recipientAddress)) {
       toast.error('Invalid recipient address');
       return;
     }
@@ -123,7 +123,7 @@ export default function Wallet() {
     try {
       setSending(true);
       
-      const result = await web3Service.sendTransaction(recipientAddress, sendAmount);
+      const result = await Web3Service.sendTransaction(recipientAddress, sendAmount);
       
       // Add transaction to local history
       const newTransaction = {
@@ -162,7 +162,7 @@ export default function Wallet() {
     window.open('https://sepoliafaucet.com/', '_blank');
   };
 
-  if (!web3Service.isMetaMaskInstalled()) {
+  if (!Web3Service.isMetaMaskInstalled()) {
     return (
       <div className="wallet-container">
         <div className="wallet-header">
@@ -213,7 +213,7 @@ export default function Wallet() {
                 className="info-value clickable"
                 onClick={() => copyToClipboard(account)}
               >
-                {web3Service.formatAddress(account)}
+                {Web3Service.formatAddress(account)}
               </span>
             </div>
             <div className="info-row">
@@ -222,7 +222,7 @@ export default function Wallet() {
             </div>
             <div className="info-row">
               <span className="info-label">Network:</span>
-              <span className="info-value">{web3Service.getNetworkName(networkId)}</span>
+              <span className="info-value">{Web3Service.getNetworkName(networkId)}</span>
             </div>
             <div className="wallet-actions">
               <button className="wallet-button secondary" onClick={refreshBalance}>
@@ -270,7 +270,7 @@ export default function Wallet() {
                 {transactions.map((tx, index) => (
                   <div key={index} className="transaction-item">
                     <div>Hash: {tx.hash}</div>
-                    <div>To: {web3Service.formatAddress(tx.to)}</div>
+                    <div>To: {Web3Service.formatAddress(tx.to)}</div>
                     <div>Amount: {tx.amount} ETH</div>
                     <div>Time: {tx.timestamp}</div>
                   </div>
