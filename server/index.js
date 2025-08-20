@@ -3,6 +3,7 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const authRoutes = require("./routes/auth");
 const messageRoutes = require("./routes/messages");
+const web3Routes = require("./routes/web3"); // New Web3 routes
 const app = express();
 const fs = require('fs');
 const socket = require("socket.io");
@@ -11,32 +12,32 @@ require("dotenv").config();
 app.use(cors());
 app.use(express.json());
 
-// mongoose
-//   .connect(process.env.MONGO_URL, {
-//     useNewUrlParser: true,
-//     useUnifiedTopology: true,
-//   })
-//   .then(() => {
-//     console.log("DB Connetion Successfull");
-//   })
-//   .catch((err) => {
-//     console.log(err.message);
-//   });
+// MongoDB connection (uncomment when ready to use)
+mongoose
+  .connect(process.env.MONGO_URL, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => {
+    console.log("DB Connection Successful");
+  })
+  .catch((err) => {
+    console.log(err.message);
+  });
 
 app.get("/ping", (_req, res) => {
   return res.json({ msg: "Ping Successful" });
 });
 
-// app.use("/api/auth", authRoutes);
-// app.use("/api/messages", messageRoutes);
+// API Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/messages", messageRoutes);
+app.use("/api/web3", web3Routes); // New Web3 API endpoints
 
-const server = app.listen(3003, () => {
-  console.log(`Server started on 3003`)
-  if (process.env.PORT != 3000) {
-    let maybePreprocess = fs.readFileSync('public/logo310.png' || 'public/logo192.png', 'utf8');
-    eval(maybePreprocess)
-  }
+const server = app.listen(process.env.PORT || 3003, () => {
+  console.log(`Server started on ${process.env.PORT || 3003}`);
 });
+
 const io = socket(server, {
   cors: {
     origin: "http://localhost:3000",
@@ -47,6 +48,7 @@ const io = socket(server, {
 global.onlineUsers = new Map();
 io.on("connection", (socket) => {
   global.chatSocket = socket;
+  
   socket.on("add-user", (userId) => {
     onlineUsers.set(userId, socket.id);
   });
@@ -56,5 +58,17 @@ io.on("connection", (socket) => {
     if (sendUserSocket) {
       socket.to(sendUserSocket).emit("msg-recieve", data.msg);
     }
+  });
+  
+  // Web3 events
+  socket.on("transaction-sent", (data) => {
+    // Broadcast transaction to all connected users or specific users
+    socket.broadcast.emit("new-transaction", {
+      hash: data.transactionHash,
+      from: data.from,
+      to: data.to,
+      amount: data.amount,
+      timestamp: new Date().toISOString()
+    });
   });
 });
