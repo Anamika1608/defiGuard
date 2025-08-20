@@ -15,6 +15,7 @@ import Features from './pages/features';
 import Team from './pages/team';
 import Blog from './pages/blog';
 import Contact from './pages/contact';
+import Wallet from './pages/wallet'
 
 const router = createBrowserRouter([
   {
@@ -48,6 +49,10 @@ const router = createBrowserRouter([
   {
     path: "/contact",
     element: <Contact />,
+  },
+  {
+    path: "/wallet",
+    element: <Wallet />,
   },
 ]);
 
